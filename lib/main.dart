@@ -1,13 +1,19 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:developer';
-import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart';
+import 'package:native_flutter_connect_metamask/contract.dart';
+import 'package:native_flutter_connect_metamask/wallet_connect_thereum_credentials.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:url_launcher/url_launcher_string.dart';
 import 'package:walletconnect_dart/walletconnect_dart.dart';
 import 'package:walletconnect_secure_storage/walletconnect_secure_storage.dart';
+import 'package:web3dart/json_rpc.dart';
+import 'package:web3dart/web3dart.dart';
 
 void main() {
   runApp(const MyApp());
@@ -42,7 +48,7 @@ class _MyHomePageState extends State<MyHomePage> {
   WalletConnect? connector;
   late WalletConnectSecureStorage connectSession;
   Completer? loadData;
-
+  late EthereumWalletConnectProvider provider;
   @override
   void initState() {
     super.initState();
@@ -79,7 +85,6 @@ class _MyHomePageState extends State<MyHomePage> {
         ],
       ),
     );
-
     // Subscribe to events
     connector?.registerListeners(
       onConnect: (status) async {
@@ -114,7 +119,7 @@ class _MyHomePageState extends State<MyHomePage> {
     // Create a new session
     if (!(connector?.connected == true)) {
       final session = await connector?.createSession(
-        chainId: 56,
+        chainId: 80001,
         onDisplayUri: (uri) async {
           log(uri);
           await launchUrlString(uri);
@@ -128,6 +133,43 @@ class _MyHomePageState extends State<MyHomePage> {
     if (connector?.connected == true) {
       await connector?.killSession();
     }
+  }
+
+  _approveContract() async {
+    provider = EthereumWalletConnectProvider(connector!);
+    AlgorandWalletConnectProvider(connector!);
+    await launchUrlString(provider.connector.session.toUri());
+    final cred = WalletConnectEthereumCredentials(provider: provider);
+    // EthPrivateKey.fromHex('hex');
+    final client = Web3Client(
+      'https://polygon-mumbai.g.alchemy.com/v2/jatNf3WknFJWaVVqYftBA_JDrwJS_myg',
+      Client(),
+    );
+    final contract = DeployedContract(
+      ContractAbi.fromJson(jsonEncode(abi), 'ChildChainManagerProxy'),
+      EthereumAddress.fromHex('0xb5505a6d998549090530911180f38aC5130101c6'),
+    );
+    final transaction = Transaction.callContract(
+        from: await cred.extractAddress(),
+        contract: contract,
+        function: contract.function('proxyOwner'),
+        parameters: [
+          // await cred.extractAddress(),
+          // BigInt.from(1),
+        ]);
+    final raw = await client
+        .sendTransaction(
+      cred,
+      transaction,
+    )
+        .then((value) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(value),
+      ));
+      return value;
+    });
+    log(raw);
+    // await client.sendRawTransaction(raw);
   }
 
   @override
@@ -145,6 +187,12 @@ class _MyHomePageState extends State<MyHomePage> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(account!),
+                  ElevatedButton(
+                    onPressed: () {
+                      _approveContract();
+                    },
+                    child: const Text('Approve Contract'),
+                  ),
                   ElevatedButton(
                     onPressed: () {
                       _walletDisconnect();

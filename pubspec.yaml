@@ -34,8 +34,13 @@ dependencies:
 
   url_launcher: ^6.1.5
   walletconnect_dart: ^0.0.11
+  walletconnect_qrcode_modal_dart: ^0.0.5
   walletconnect_secure_storage: ^1.0.0
   shared_preferences: ^2.0.15
+  web3dart: ^2.4.1
+  dio: ^4.0.6
+  http: ^0.13.5
+
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.2
